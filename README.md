@@ -84,7 +84,7 @@ The full correctness proof and analysis are in the report.
 
 ## Test Cases
 
-`tests/all_testcases.txt` contains 11 test cases with expected outputs, covering:
+`testcases.txt` contains 11 test cases with expected outputs, covering:
 
 - a single lecture
 - one lecture overlapping all others
