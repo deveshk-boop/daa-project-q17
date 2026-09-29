@@ -1,0 +1,128 @@
+EXACT DOMINATION - ALL TEST CASES
+=================================
+Assumption: intervals are half-open, so back-to-back lectures
+(one ends at 10:00, the next starts at 10:00) do NOT overlap.
+
+Input format for each case:
+    n
+    n lines of "HH:MM HH:MM"  (start end)
+
+Each case below starts with a "### TEST" line. The lines under
+"INPUT" are what you give to the program. The line under "EXPECTED"
+is the correct output.
+
+
+### TEST 01: single lecture
+INPUT
+1
+09:00 10:00
+EXPECTED
+Selected lectures: 1
+
+
+### TEST 02: one lecture overlaps all the others
+INPUT
+3
+09:00 12:00
+09:30 10:30
+11:00 11:30
+EXPECTED
+Selected lectures: 1     (only valid answer)
+
+
+### TEST 03: identical lectures (all overlap each other)
+INPUT
+3
+09:00 10:00
+09:00 10:00
+09:00 10:00
+EXPECTED
+Selected lectures: 1     (2 or 3 is also valid)
+
+
+### TEST 04: all disjoint (every lecture must be chosen)
+INPUT
+3
+08:00 09:00
+10:00 11:00
+12:00 13:00
+EXPECTED
+Selected lectures: 1 2 3
+
+
+### TEST 05: two separate groups
+INPUT
+4
+08:00 09:00
+08:30 09:30
+13:00 14:00
+13:30 14:30
+EXPECTED
+Any one of: 1 3 / 1 4 / 2 3 / 2 4
+
+
+### TEST 06: chain 1-2-3-4 (unique answer)
+INPUT
+4
+08:00 10:00
+09:00 11:00
+10:00 12:00
+11:00 13:00
+EXPECTED
+Selected lectures: 1 4   (only valid answer)
+
+
+### TEST 07: touching lectures (edge case)
+INPUT
+2
+08:00 10:00
+10:00 12:00
+EXPECTED
+Selected lectures: 1 2
+(If touching counted as overlapping, the answer would be 1 or 2.)
+
+
+### TEST 08: lectures crossing midnight
+INPUT
+3
+23:00 01:00
+00:30 02:00
+12:00 13:00
+EXPECTED
+Any one of: 1 3 / 2 3
+
+
+### TEST 09: ring of 6 (solution wraps around the whole day)
+INPUT
+6
+00:00 05:00
+04:00 09:00
+08:00 13:00
+12:00 17:00
+16:00 21:00
+20:00 01:00
+EXPECTED
+Any one of: 1 4 / 2 5 / 3 6
+
+
+### TEST 10: ring of 5 (no solution)
+INPUT
+5
+00:00 06:00
+05:00 11:00
+10:00 16:00
+15:00 21:00
+20:00 02:00
+EXPECTED
+No valid subset exists.
+
+
+### TEST 11: ring of 4 (no solution)
+INPUT
+4
+00:00 07:00
+06:00 13:00
+12:00 19:00
+18:00 01:00
+EXPECTED
+No valid subset exists.
