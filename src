@@ -1,0 +1,203 @@
+#include <bits/stdc++.h>
+using namespace std;
+
+const int MINUTES_IN_DAY = 1440;
+
+int n;
+vector<int> startTime, endTime;          // in minutes, 0..1439
+vector<vector<bool>> overlap;            // overlap[i][j]: lectures i and j overlap
+vector<vector<bool>> canFollow;          // canFollow[a][b]: b may come right after a
+
+
+// ---------- Basic circular-time helpers ----------
+
+// How many minutes you travel going forward (clockwise) from 'from' to 'to'.
+int distanceForward(int from, int to) {
+    return ((to - from) % MINUTES_IN_DAY + MINUTES_IN_DAY) % MINUTES_IN_DAY;
+}
+
+// Is time p inside the circular interval [a, b) ?
+bool isInside(int p, int a, int b) {
+    return distanceForward(a, p) < distanceForward(a, b);
+}
+
+
+// ---------- Step 1: overlap table ----------
+
+// Two lectures overlap if one of them starts inside the other.
+// (A lecture always overlaps itself.)
+bool computeOverlap(int i, int j) {
+    if (i == j) return true;
+    bool iStartsInsideJ = isInside(startTime[i], startTime[j], endTime[j]);
+    bool jStartsInsideI = isInside(startTime[j], startTime[i], endTime[i]);
+    return iStartsInsideJ || jStartsInsideI;
+}
+
+void buildOverlapTable() {
+    overlap.assign(n, vector<bool>(n, false));
+    for (int i = 0; i < n; i++)
+        for (int j = 0; j < n; j++)
+            overlap[i][j] = computeOverlap(i, j);
+}
+
+
+// ---------- Step 2: can lecture b come right after lecture a? ----------
+
+bool computeCanFollow(int a, int b) {
+    // Chosen lectures must not overlap each other.
+    if (overlap[a][b]) return false;
+
+    // Length of the gap between the end of a and the start of b.
+    int gapLength = distanceForward(endTime[a], startTime[b]);
+
+    for (int c = 0; c < n; c++) {
+        bool touchesA = overlap[c][a];
+        bool touchesB = overlap[c][b];
+
+        // Rule 1: c would be covered twice (by a and by b).
+        if (touchesA && touchesB) return false;
+
+        // Rule 2: c overlaps neither, and starts inside the gap,
+        // so it would not be covered by anyone.
+        if (!touchesA && !touchesB) {
+            int cOffsetInGap = distanceForward(endTime[a], startTime[c]);
+            if (cOffsetInGap < gapLength) return false;
+        }
+    }
+    return true;
+}
+
+void buildCanFollowTable() {
+    canFollow.assign(n, vector<bool>(n, false));
+    for (int a = 0; a < n; a++)
+        for (int b = 0; b < n; b++)
+            if (a != b)
+                canFollow[a][b] = computeCanFollow(a, b);
+}
+
+
+// ---------- Step 3: special case, a single lecture covers everything ----------
+
+int findSingleCoveringLecture() {
+    for (int a = 0; a < n; a++) {
+        bool coversAll = true;
+        for (int c = 0; c < n; c++)
+            if (!overlap[a][c]) coversAll = false;
+        if (coversAll) return a;
+    }
+    return -1;   // none found
+}
+
+
+// ---------- Step 4: search for a chain starting at 'first' ----------
+
+// Returns the chosen lectures, or an empty vector if no valid chain starts at 'first'.
+vector<int> searchChainFrom(int first) {
+    // Order all other lectures by how far their start is from 'first' going clockwise.
+    vector<int> order;
+    for (int x = 0; x < n; x++)
+        if (x != first) order.push_back(x);
+
+    sort(order.begin(), order.end(), [&](int x, int y) {
+        return distanceForward(startTime[first], startTime[x]) <
+               distanceForward(startTime[first], startTime[y]);
+    });
+
+    // reachable[x] = true if there is a valid chain first -> ... -> x
+    // previous[x]  = the lecture just before x in that chain
+    vector<bool> reachable(n, false);
+    vector<int> previous(n, -1);
+
+    for (int i = 0; i < (int)order.size(); i++) {
+        int x = order[i];
+
+        // Option A: x directly follows 'first'.
+        if (canFollow[first][x]) {
+            reachable[x] = true;
+            previous[x] = first;
+        }
+        // Option B: x follows some earlier lecture y in the order.
+        else {
+            for (int j = 0; j < i; j++) {
+                int y = order[j];
+                if (reachable[y] && canFollow[y][x]) {
+                    reachable[x] = true;
+                    previous[x] = y;
+                    break;
+                }
+            }
+        }
+
+        // If x can be followed by 'first', the chain closes into a full circle.
+        if (reachable[x] && canFollow[x][first]) {
+            vector<int> chain;
+            int v = x;
+            while (v != first) {
+                chain.push_back(v);
+                v = previous[v];
+            }
+            chain.push_back(first);
+            return chain;
+        }
+    }
+    return {};   // no valid chain from this starting lecture
+}
+
+
+
+int parseTime(const string& text) {          // "HH:MM" -> minutes
+    int hours = stoi(text.substr(0, 2));
+    int minutes = stoi(text.substr(3, 2));
+    return hours * 60 + minutes;
+}
+
+void readInput() {
+    cin >> n;
+    startTime.resize(n);
+    endTime.resize(n);
+    for (int i = 0; i < n; i++) {
+        string startText, endText;
+        cin >> startText >> endText;
+        startTime[i] = parseTime(startText);
+        endTime[i] = parseTime(endText);
+        if (startTime[i] == endTime[i])      // avoid an empty interval
+            endTime[i] = (endTime[i] + 1) % MINUTES_IN_DAY;
+    }
+}
+
+void printAnswer(vector<int> chosen) {
+    sort(chosen.begin(), chosen.end());
+    cout << "Selected lectures: ";
+    for (int lecture : chosen) cout << lecture + 1 << " ";
+    cout << "\n";
+}
+
+int main() {
+    readInput();
+    buildOverlapTable();
+
+    // Case 1: one lecture overlaps everything.
+    int single = findSingleCoveringLecture();
+    if (single != -1) {
+        printAnswer({single});
+        return 0;
+    }
+
+    // Case 2: a circular chain of several lectures.
+    buildCanFollowTable();
+
+    for (int first = 0; first < n; first++) {
+        // Lecture 1 (index 0) must overlap some chosen lecture,
+        // so we only need to start from lectures that overlap it.
+        if (!overlap[0][first]) continue;
+
+        vector<int> chain = searchChainFrom(first);
+        if (!chain.empty()) {
+            printAnswer(chain);
+            return 0;
+        }
+    }
+
+    cout << "No valid subset exists.\n";
+    return 0;
+}
