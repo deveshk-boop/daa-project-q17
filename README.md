@@ -49,8 +49,7 @@ Time: O(n^3), space: O(n^2). The full explanation and proof are in the report.
 ## Files
 
 - `src/exact_domination.cpp`: the efficient solution
-- `src/brute_force.cpp`: the slow backtracking version, for checking small cases
-- `tests/all_testcases.txt`: 11 test cases with expected outputs (copy one input
+- `tests/testcases.txt`: 11 test cases with expected outputs (copy one input
   into its own file to run it)
 - `report/report.tex`, `report/report.pdf`: the project report
 
