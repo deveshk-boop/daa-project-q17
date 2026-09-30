@@ -1,389 +1,134 @@
 \documentclass[11pt,a4paper]{article}
-
 \usepackage[margin=1in]{geometry}
-\usepackage{amsmath,amssymb,amsthm}
-\usepackage{algorithm}
-\usepackage{algpseudocode}
+\usepackage{amsmath,amssymb}
 \usepackage{booktabs}
 \usepackage{hyperref}
 
-\newtheorem{lemma}{Lemma}
-\newtheorem{theorem}{Theorem}
-\theoremstyle{definition}
-\newtheorem{definition}{Definition}
-\newtheorem{remark}{Remark}
-
-\newcommand{\M}{1440}
 \newcommand{\dist}{\operatorname{d}}
 \newcommand{\pos}{\operatorname{pos}}
 
-\title{Exact Domination of Lecture Timings:\\An Efficient Algorithm}
+\title{Exact Domination of Lecture Timings}
 \author{Devesh Kumar (bmat2319), Arjina Jana (bmat2312)}
 \date{}
 
 \begin{document}
 \maketitle
 
-\begin{abstract}
-A supervisor wants to choose a subset of courses so that every lecture overlaps
-with \emph{exactly one} lecture of the chosen subset (a chosen lecture overlaps
-itself). Lectures are daily and may run past midnight, so they are arcs on a
-$24$-hour circle. We show that the chosen lectures must be pairwise disjoint and
-that a set is valid if and only if every pair of cyclically consecutive chosen
-lectures satisfies three local conditions. This turns the problem into finding
-a closed chain around the circle, which we solve by dynamic programming in
-$O(n^3)$ time and $O(n^2)$ space, in place of the $O(2^n)$ time of
-straightforward backtracking. A correctness proof and a complexity analysis
-are given.
-\end{abstract}
+\noindent\textbf{Code:} \url{https://github.com/deveshk-boop/daa-project-q17}
+(build and run instructions are in the README).
 
-\noindent\textbf{Implementation:} \url{https://github.com/deveshk-boop/daa-project-q17}
-\quad (see the \texttt{README.md} there for build and run instructions).
+\section{The problem}
 
-%---------------------------------------------------------------
-\section{Problem Statement}
+We have $n$ lectures, one per day, each with a start and end time (possibly
+crossing midnight). We must pick a subset $S$ of lectures so that every lecture
+overlaps \emph{exactly one} lecture of $S$; a chosen lecture counts as
+overlapping itself. If no such subset exists, we say so.
 
-There are $n$ courses, and course $i$ has one lecture per day, from a start time
-$s_i$ to an end time $e_i$ given as \texttt{HH:MM}. A lecture may cross midnight
-($e_i$ earlier than $s_i$). Two lectures \emph{overlap} if they are in progress
-together at some moment of the day. We must select a subset $S$ of the lectures
-such that every lecture overlaps with \emph{exactly one} lecture in $S$,
-counting the lecture itself if it is in $S$. If no such $S$ exists, the
-algorithm must report this.
+\paragraph{Setup.} Times are in minutes on a circle of length $M=1440$. Lecture
+$i$ is the arc $A_i$ of $\ell_i=(e_i-s_i)\bmod M$ minutes starting at $s_i$. I
+made two assumptions since the statement is silent on them: lectures are
+half-open, so back-to-back lectures do not overlap, and a lecture with
+$s_i=e_i$ lasts one minute. Write $\dist(x,y)=(y-x)\bmod M$ for the clockwise
+distance from $x$ to $y$; a time $p$ is in $A_i$ iff $\dist(s_i,p)<\ell_i$.
 
-\subsection*{Model and assumptions}
+\section{Key observations}
 
-Time is measured in minutes, so the day is a circle of length $\M$ (we write $M=\M$
-when it appears in formulas). Lecture $i$ is the half-open arc
-\[
-  A_i = \{\,s_i,\; s_i+1,\; \dots,\; s_i+\ell_i-1\,\} \pmod{M},
-\]
-where the length is $\ell_i = (e_i - s_i) \bmod M$. If $s_i = e_i$, we set
-$\ell_i = 1$ (a one-minute lecture); the statement does not define this case,
-so this is an assumption. Since arcs are half-open, lectures that merely touch
-(one ends exactly when the next starts) do \emph{not} overlap.
+\textbf{Overlap test.} Two arcs overlap iff one of them starts inside the other.
+(If $p$ is in both, the one whose start is closer behind $p$ starts inside the
+other.) So the overlap table takes $O(1)$ per pair.
 
-\begin{definition}
-Let $\dist(x,y) = (y-x) \bmod M$ be the forward (clockwise) distance from
-time $x$ to time $y$. A time $p$ lies in $A_i$ iff $\dist(s_i,p) < \ell_i$.
-A set $S$ of lectures is \emph{valid} if for every lecture $c$,
-\[
-  \bigl|\{\, a\in S : A_a \cap A_c \neq \emptyset \,\}\bigr| = 1 .
-\]
-\end{definition}
+\textbf{Chosen lectures are disjoint.} A chosen lecture already overlaps itself,
+so it may not overlap any other chosen lecture.
 
-%---------------------------------------------------------------
-\section{Structural Results}
+\textbf{Single lecture.} $S=\{a\}$ is valid iff $a$ overlaps every lecture.
 
-\begin{lemma}[Overlap test]\label{lem:overlap}
-Two arcs $A_i, A_j$ intersect if and only if $s_i \in A_j$ or $s_j \in A_i$.
-\end{lemma}
-\begin{proof}
-If $s_i\in A_j$ then $s_i \in A_i\cap A_j$, and symmetrically for $s_j\in A_i$.
-Conversely, let $p\in A_i\cap A_j$ and assume without loss of generality that
-$\dist(s_j,p)\le \dist(s_i,p)$. Both distances are less than $M$, so
-$\dist(s_i,s_j)=\dist(s_i,p)-\dist(s_j,p)\le \dist(s_i,p)<\ell_i$, hence
-$s_j\in A_i$.
-\end{proof}
-
-Thus the overlap table can be computed with two membership tests per pair.
-
-\begin{lemma}[Chosen lectures are disjoint]\label{lem:disjoint}
-If $S$ is valid, then the arcs of $S$ are pairwise disjoint.
-\end{lemma}
-\begin{proof}
-Take $a\in S$. The lecture $a$ overlaps itself, and it must overlap exactly one
-member of $S$, so it overlaps no other member of $S$.
-\end{proof}
-
-A valid set with a single lecture is easy to describe: $S=\{a\}$ is valid iff
-$A_a$ intersects every arc. From now on, let $S$ be a set of $k\ge 2$ pairwise
-disjoint arcs. Listing them by start time clockwise gives a cyclic order
-$x_0,x_1,\dots,x_{k-1}$, with indices taken modulo $k$. We say $x_{i+1}$
-\emph{follows} $x_i$.
-
-\begin{definition}[Gap]
-For $a,b\in S$ with $b$ following $a$, the \emph{gap} is
-$\mathrm{gap}(a,b) = \{\,p : \dist(e_a,p) < \dist(e_a,s_b)\,\}$, the times
-from the end of $a$ up to (not including) the start of $b$.
-\end{definition}
-
-\begin{definition}[Compatibility $F(a,b)$]
-For distinct lectures $a,b$, let $F(a,b)$ hold iff all three conditions hold:
-\begin{description}
-  \item[(F1)] $A_a\cap A_b=\emptyset$;
-  \item[(F2)] no lecture $c$ overlaps both $a$ and $b$;
-  \item[(F3)] no lecture $c$ that overlaps neither $a$ nor $b$ has its start
-  $s_c$ in $\mathrm{gap}(a,b)$.
-\end{description}
-\end{definition}
-
-\begin{lemma}[Contiguity]\label{lem:consecutive}
-Let $S$ be a set of $k\ge 2$ pairwise disjoint arcs. If an arc $A_c$ overlaps
-two arcs of $S$, then it overlaps two cyclically consecutive arcs of $S$.
-\end{lemma}
-\begin{proof}
-Suppose $A_c$ contains a point $u\in A_{x_i}$ and a point $v\in A_{x_j}$ with
-$x_i\neq x_j$. Since $A_c$ is a connected arc of the circle, it contains one of
-the two circular paths from $u$ to $v$; take the clockwise path from $u$ (the
-other case is symmetric). Leaving $A_{x_i}$ and moving clockwise, the first arc
-of $S$ that the path enters is $x_{i+1}$, because $x_{i+1}$ is the next arc by
-start time and arcs of $S$ are disjoint. So $A_c$ contains a point of
-$A_{x_{i+1}}$ and overlaps both $x_i$ and $x_{i+1}$.
-\end{proof}
-
-\begin{lemma}[Local characterisation]\label{lem:local}
-Let $S$ be a set of $k\ge2$ pairwise disjoint arcs in cyclic order
-$x_0,\dots,x_{k-1}$. Then $S$ is valid if and only if $F(x_i,x_{i+1})$ holds
-for all $i$ (indices modulo $k$).
-\end{lemma}
-\begin{proof}
-$(\Rightarrow)$ Let $S$ be valid and take a consecutive pair $a=x_i$,
-$b=x_{i+1}$. (F1) holds because $S$ is pairwise disjoint. For (F2), a lecture
-overlapping both $a$ and $b$ would overlap two members of $S$, contradicting
-validity. For (F3), suppose $c$ overlaps neither $a$ nor $b$ and
-$s_c\in \mathrm{gap}(a,b)$. Since $s_b\notin A_c$, we get
-$\ell_c\le \dist(s_c,s_b)$, so $A_c\subseteq[s_c,s_b)\subseteq\mathrm{gap}(a,b)$.
-No arc of $S$ meets the gap: if $x\in S$ contained a point $p$ of the gap,
-walk backward from $p$ inside $A_x$. No start time of $S$ lies in
-$[e_a,s_b)$, so the walk would have to pass through the last point of $A_a$,
-forcing $x=a$; but $A_a$ does not contain $p$. Hence $c$ overlaps no member of
-$S$, contradicting validity. So (F3) holds.
-
-$(\Leftarrow)$ Assume $F$ holds for all consecutive pairs and let $c$ be any
-lecture. \emph{At most one:} if $c$ overlapped two members of $S$, then by
-Lemma~\ref{lem:consecutive} it would overlap some consecutive pair, violating
-(F2). \emph{At least one:} suppose $c$ overlaps no member of $S$. Then $s_c$
-lies in no arc of $S$, so it lies in some gap $\mathrm{gap}(x_i,x_{i+1})$ (the
-circle minus the arcs of $S$ is the union of the gaps), and $c$ overlaps neither
-$x_i$ nor $x_{i+1}$; this violates (F3). Hence $c$ overlaps exactly one member
-of $S$.
-\end{proof}
-
-\subsection*{Reduction to a closed chain}
-
-Fix a lecture $a_0$ and define $\pos(x) = \dist(s_{a_0}, s_x)$, the clockwise
-offset of the start of $x$ from the start of $a_0$.
-
-\begin{lemma}[Chains]\label{lem:chain}
-Let $a_0\in S$, where $S$ is a set of $k \ge 2$ lectures.
+\textbf{Two or more lectures.} Then $S$ is a set of disjoint arcs, so they sit
+around the circle in a fixed order $x_0,x_1,\dots,x_{k-1}$. For two neighbours
+$a$ then $b$, the \emph{gap} is the time between the end of $a$ and the start of
+$b$. Say $b$ \emph{can follow} $a$, written $F(a,b)$, if:
 \begin{enumerate}
-  \item If $S$ is valid, listing $S$ in cyclic order starting at $a_0$ gives a
-  sequence $a_0=x_0,x_1,\dots,x_m$ ($m=k-1$) with
-  $0=\pos(x_0)<\pos(x_1)<\dots<\pos(x_m)<M$,
-  $F(x_i,x_{i+1})$ for $0\le i<m$, and $F(x_m,a_0)$.
-  \item Conversely, if a sequence $a_0=x_0,\dots,x_m$ with $m\ge1$ has all these
-  properties, then $\{x_0,\dots,x_m\}$ is valid.
+  \item $a$ and $b$ do not overlap;
+  \item no lecture overlaps both $a$ and $b$ (it would be covered twice);
+  \item no lecture that overlaps neither $a$ nor $b$ starts inside the gap
+  (it would not be covered at all).
 \end{enumerate}
-\end{lemma}
-\begin{proof}
-(1) By Lemma~\ref{lem:disjoint} the arcs are pairwise disjoint, so their cyclic
-order by start time is well defined, and reading it from $a_0$ gives strictly
-increasing offsets. The $F$ conditions follow from Lemma~\ref{lem:local}.
 
-(2) Write $p_i=\pos(x_i)$ and $\ell_i$ for the length of $x_i$. We claim
-$p_i+\ell_i\le p_{i+1}$ for $i<m$, and $p_m+\ell_m\le M$.
-If $p_i+\ell_i>p_{i+1}$ for some $i<m$, then $p_i<p_{i+1}<p_i+\ell_i$, so the
-start of $x_{i+1}$ lies in $A_{x_i}$, contradicting (F1) for $(x_i,x_{i+1})$.
-If $p_m+\ell_m>M$, then the start of $a_0$ (offset $M\equiv0$) lies in
-$A_{x_m}$, contradicting (F1) for $(x_m,a_0)$.
-Thus the arcs occupy the disjoint intervals $[p_i,p_i+\ell_i)\subseteq[0,M)$ in
-increasing order. Hence they are pairwise disjoint, their cyclic order is
-$x_0,\dots,x_m$, and the pairs checked by $F$ are exactly the consecutive pairs.
-By Lemma~\ref{lem:local}, the set is valid.
-\end{proof}
+\paragraph{Claim.} A set $S$ of $k\ge2$ disjoint arcs is valid iff $F(x_i,x_{i+1})$
+holds for every neighbouring pair (cyclically, including $x_{k-1}\to x_0$).
 
-%---------------------------------------------------------------
-\section{The Algorithm}
+\emph{Proof.} ($\Rightarrow$) If $S$ is valid, condition 1 holds because the
+arcs are disjoint. Condition 2 holds, otherwise some lecture is covered twice.
+For condition 3, suppose $c$ overlaps neither $a$ nor $b$ but starts in their
+gap. It cannot reach the start of $b$, so it lies entirely inside the gap. No
+chosen arc touches the gap, because $a$ and $b$ are neighbours, so $c$ overlaps
+nothing in $S$, a contradiction.
 
-\paragraph{Idea.}
-Handle the single-lecture case directly. Otherwise, build the table
-$F(\cdot,\cdot)$ and look for a closed chain around the circle. Since the
-lecture numbered $1$ must overlap some chosen lecture, every valid set contains
-a lecture overlapping it, so it suffices to try each such lecture as the
-starting point $a_0$.
+($\Leftarrow$) Take any lecture $c$. If $c$ overlapped two chosen arcs, then, since
+$c$ is one connected stretch of the circle, walking from one of them to the other
+it must touch a pair of neighbours, and condition 2 forbids that. If $c$
+overlapped no chosen arc, its start would fall in some gap, and it would overlap
+neither neighbour of that gap, which condition 3 forbids. So $c$
+overlaps exactly one chosen arc. $\square$
 
-\begin{algorithm}[h]
-\caption{\textsc{ExactDomination}$(A_1,\dots,A_n)$}
-\begin{algorithmic}[1]
-\State build $O[i][j]\gets [\,A_i\cap A_j\neq\emptyset\,]$ for all $i,j$ (Lemma~\ref{lem:overlap}); $O[i][i]\gets\textbf{true}$
-\For{$a=1$ \textbf{to} $n$} \Comment{single-lecture case}
-  \If{$O[a][c]$ for all $c$} \Return $\{a\}$ \EndIf
-\EndFor
-\State build $F[a][b]$ for all $a\neq b$ using \textsc{ComputeF}
-\For{$a_0=1$ \textbf{to} $n$ with $O[1][a_0]$}
-  \State $chain\gets\textsc{SearchChain}(a_0)$
-  \If{$chain$ is not empty} \Return $chain$ \EndIf
-\EndFor
-\State \Return ``no valid subset exists''
-\end{algorithmic}
-\end{algorithm}
+\section{Algorithm}
 
-\begin{algorithm}[h]
-\caption{\textsc{ComputeF}$(a,b)$}
-\begin{algorithmic}[1]
-\If{$O[a][b]$} \Return \textbf{false} \EndIf \Comment{(F1)}
-\State $g\gets \dist(e_a,s_b)$ \Comment{length of the gap}
-\For{$c=1$ \textbf{to} $n$}
-  \If{$O[c][a]$ \textbf{and} $O[c][b]$} \Return \textbf{false} \EndIf \Comment{(F2)}
-  \If{\textbf{not} $O[c][a]$ \textbf{and not} $O[c][b]$ \textbf{and} $\dist(e_a,s_c)<g$}
-    \State \Return \textbf{false} \Comment{(F3)}
-  \EndIf
-\EndFor
-\State \Return \textbf{true}
-\end{algorithmic}
-\end{algorithm}
+\begin{enumerate}
+  \item Build the overlap table.
+  \item If some lecture overlaps all lectures, output it.
+  \item Otherwise build the table $F(a,b)$ for all pairs, by checking the three
+  conditions against every lecture $c$.
+  \item Lecture~1 must overlap some chosen lecture, so try each lecture $a_0$
+  that overlaps lecture~1 as the starting point. For each one:
+  \begin{itemize}
+    \item Sort the other lectures by $\pos(x)=\dist(s_{a_0},s_x)$, the clockwise
+    offset of their start from $a_0$.
+    \item Go through them in that order. Mark $x$ \emph{reachable} if
+    $F(a_0,x)$, or if some earlier reachable $y$ has $F(y,x)$, and remember $y$.
+    \item As soon as a reachable $x$ also has $F(x,a_0)$, the chain wraps the
+    whole circle. Follow the remembered links back to $a_0$ and output the chain.
+  \end{itemize}
+  \item If no starting lecture works, output ``no valid subset exists''.
+\end{enumerate}
 
-\begin{algorithm}[h]
-\caption{\textsc{SearchChain}$(a_0)$}
-\begin{algorithmic}[1]
-\State $order\gets$ all lectures except $a_0$, sorted by $\pos(x)=\dist(s_{a_0},s_x)$
-\State $reach[x]\gets\textbf{false}$ and $prev[x]\gets\text{none}$ for all $x$
-\For{$i=1$ \textbf{to} $n-1$}
-  \State $x\gets order[i]$
-  \If{$F[a_0][x]$}
-    \State $reach[x]\gets\textbf{true}$; $prev[x]\gets a_0$
-  \Else
-    \For{$j=1$ \textbf{to} $i-1$} \Comment{a predecessor earlier in the order}
-      \State $y\gets order[j]$
-      \If{$reach[y]$ \textbf{and} $F[y][x]$}
-        \State $reach[x]\gets\textbf{true}$; $prev[x]\gets y$; \textbf{break}
-      \EndIf
-    \EndFor
-  \EndIf
-  \If{$reach[x]$ \textbf{and} $F[x][a_0]$} \Comment{the chain closes around the circle}
-    \State \Return $x, prev[x], prev[prev[x]],\dots,a_0$
-  \EndIf
-\EndFor
-\State \Return empty
-\end{algorithmic}
-\end{algorithm}
+\section{Why it is correct}
 
-%---------------------------------------------------------------
-\section{Correctness}
+\emph{Any chain found is valid.} Let the chain be $a_0=x_0,\dots,x_m$ with
+$F(x_i,x_{i+1})$ and $F(x_m,a_0)$ and increasing offsets. (Two different lectures
+with the same start overlap, so $F$ never links them, and the offsets strictly
+increase.) Put each $x_i$ on a line starting at $a_0$: it occupies
+$[p_i,p_i+\ell_i)$ where $p_i$ is its offset. Because $x_{i+1}$ does not start
+inside $x_i$, we get $p_i+\ell_i\le p_{i+1}$. Likewise $x_m$ must not run past the
+start of $a_0$, or it would overlap $a_0$, which condition 1 of $F(x_m,a_0)$
+forbids. So the arcs are disjoint, in the order $x_0,\dots,x_m$, and their
+neighbours are exactly the pairs we checked. By the claim, the set is valid.
 
-\begin{lemma}\label{lem:ties}
-Inside \textsc{SearchChain}, any chain $a_0=x_0,x_1,\dots$ built by the
-dynamic program satisfies $\pos(x_1)<\pos(x_2)<\cdots$ strictly, and
-$\pos(x_1)>0$.
-\end{lemma}
-\begin{proof}
-The program only extends a chain by an element that is later in the sorted
-order, so offsets never decrease. Two distinct lectures with the same start time
-overlap (each starts inside the other), so (F1) fails for them, and the program
-never links them. Hence offsets strictly increase, and since any lecture with
-$\pos=0$ has the same start as $a_0$ and overlaps it, $x_1$ has $\pos>0$.
-\end{proof}
+\emph{No valid set is missed.} Suppose a valid $S$ exists. If $|S|=1$, step 2
+finds a lecture that works. Otherwise some member $a_0$ of $S$ overlaps
+lecture~1, so it is tried in step 4. Listing $S$ clockwise from $a_0$ gives a
+chain with increasing offsets, and $F$ holds on all neighbouring pairs by the
+claim. The reachability search explores all such chains, so it finds one (maybe a
+different valid one), for this $a_0$ or an earlier one.
 
-\begin{lemma}[\textsc{SearchChain}]\label{lem:search}
-\textsc{SearchChain}$(a_0)$ returns a non-empty list if and only if there is a
-sequence $a_0=x_0,x_1,\dots,x_m$ ($m\ge1$) with strictly increasing offsets,
-$F(x_i,x_{i+1})$ for $i<m$, and $F(x_m,a_0)$. The returned list is such a
-sequence.
-\end{lemma}
-\begin{proof}
-By induction over the sorted order, $reach[x]$ is true iff some chain from
-$a_0$ to $x$ exists with $F$ on every step and increasing offsets: the base case
-is $F[a_0][x]$, and otherwise the program tries every earlier $y$ that is
-reachable. The chain is returned exactly at the first reachable $x$ with
-$F[x][a_0]$. Following the $prev$ pointers reconstructs such a chain, using
-Lemma~\ref{lem:ties} for strictness.
-\end{proof}
-
-\begin{theorem}
-\textsc{ExactDomination} outputs a valid subset if one exists, and reports that
-none exists otherwise.
-\end{theorem}
-\begin{proof}
-\emph{Soundness.} If a single lecture is output, it overlaps every lecture, so it
-is valid. If a chain is output, then Lemmas~\ref{lem:search} and
-\ref{lem:chain}(2) show the chosen set is valid.
-
-\emph{Completeness.} Suppose a valid set $S$ exists. If $|S|=1$, the
-single-lecture test succeeds. Otherwise $|S|\ge2$. Lecture~$1$ must overlap a
-member of $S$; call it $a_0$, so $O[1][a_0]$ holds and $a_0$ is tried by the
-main loop. By Lemma~\ref{lem:chain}(1), $S$ listed in cyclic order from $a_0$ is
-a chain of the required form, so by Lemma~\ref{lem:search},
-\textsc{SearchChain}$(a_0)$ (or an earlier call) returns a non-empty chain, which
-is valid by soundness. Therefore the algorithm never wrongly reports that no
-valid set exists.
-\end{proof}
-
-%---------------------------------------------------------------
-\section{Complexity Analysis}
-
-Let $n$ be the number of lectures.
+\section{Complexity}
 
 \begin{itemize}
-  \item \textbf{Overlap table.} $O(1)$ per pair, so $O(n^2)$ time and $O(n^2)$ space.
-  \item \textbf{Single-lecture test.} Checking each lecture against all others takes $O(n^2)$.
-  \item \textbf{Table $F$.} \textsc{ComputeF} scans all $n$ lectures, so $O(n)$
-  per pair and $O(n^3)$ over all $n(n-1)$ pairs; the table takes $O(n^2)$ space.
-  \item \textbf{One call of \textsc{SearchChain}.} Sorting costs $O(n\log n)$.
-  The double loop performs $O(n^2)$ table lookups, each $O(1)$, and
-  reconstruction is $O(n)$. The total is $O(n^2)$.
-  \item \textbf{Main loop.} At most $n$ starting lectures, so $O(n)\cdot O(n^2)=O(n^3)$.
+  \item Overlap table: $O(n^2)$.
+  \item Table $F$: $n^2$ pairs, $O(n)$ each, so $O(n^3)$.
+  \item One chain search: sorting is $O(n\log n)$, and the reachability loop is
+  $O(n^2)$ lookups. At most $n$ starting lectures gives $O(n^3)$.
 \end{itemize}
+Total: $O(n^3)$ time and $O(n^2)$ space for the two tables. The first brute-force
+version tried every subset, which is $O(2^n)$. I did not try to prove
+$O(n^3)$ is optimal; it is just the easiest bound to justify.
 
-Overall the running time is
-\[
-  O(n^2) + O(n^3) + O(n^3) = O(n^3),
-\]
-and the space is $O(n^2)$ for the tables $O$ and $F$ (the per-call arrays use
-$O(n)$). Reading the input takes $O(n)$. This is polynomial, in contrast to the
-$O(2^n)$ worst case of the backtracking baseline, which tries every subset.
+\section{Testing}
 
-\begin{remark}
-We do not claim that $O(n^3)$ is optimal. It is chosen because each step is
-easy to prove correct; the table $F$ and the search could likely be sped up by
-exploiting the interval structure, but that is not needed here.
-\end{remark}
-
-%---------------------------------------------------------------
-\section{Implementation and Testing}
-
-The algorithm is implemented in C++ (\texttt{src/exact\_domination.cpp}).
-Input is $n$ followed by $n$ lines \texttt{HH:MM HH:MM}. The output is either the
-selected lecture numbers or \texttt{No valid subset exists.} The repository also
-contains the original backtracking solution (\texttt{src/brute\_force.cpp}) and a
-file of hand-verified test cases (\texttt{tests/all\_testcases.txt}), summarised
-below.
-
-\begin{table}[h]
-\centering
-\begin{tabular}{@{}cll@{}}
-\toprule
-\# & Scenario & Expected output \\
-\midrule
-1  & single lecture                             & \texttt{1} \\
-2  & one lecture overlaps all others            & \texttt{1} \\
-3  & identical lectures                         & any single lecture \\
-4  & all lectures disjoint                      & all lectures \\
-5  & two separate groups                        & one from each group \\
-6  & chain $1$--$2$--$3$--$4$                   & \texttt{1 4} \\
-7  & touching lectures                          & \texttt{1 2} \\
-8  & lectures crossing midnight                 & \texttt{1 3} or \texttt{2 3} \\
-9  & ring of $6$ lectures                       & \texttt{1 4}, \texttt{2 5} or \texttt{3 6} \\
-10 & ring of $5$ lectures                       & no valid subset \\
-11 & ring of $4$ lectures                       & no valid subset \\
-\bottomrule
-\end{tabular}
-\caption{Test cases covering simple, boundary, wrap-around and infeasible inputs.}
-\end{table}
-
-A ring of $k$ lectures, each overlapping only its two neighbours, has a valid
-subset exactly when $3\mid k$: each chosen lecture covers itself and its two
-neighbours, so the lectures must split into blocks of three. This explains the
-outcomes of cases 9--11.
-
-%---------------------------------------------------------------
-\section{Conclusion}
-
-We characterised valid selections as pairwise disjoint sets whose cyclically
-consecutive members satisfy three local conditions, reduced the search to a
-closed chain around the day, and solved it in $O(n^3)$ time and $O(n^2)$ space,
-with a proof of correctness. The stated assumptions are half-open lecture
-intervals (touching lectures do not overlap) and one-minute duration for
-lectures with equal start and end time.
+The repository has 11 hand-checked test cases in \texttt{tests/all\_testcases.txt}.
+They cover a single lecture, one lecture covering all, identical lectures,
+disjoint lectures, separate groups, a chain with a unique answer, touching
+lectures, midnight wrap-around, and rings of 4, 5 and 6 lectures. A ring where
+each lecture overlaps only its two neighbours has a valid subset exactly when
+its size is divisible by 3, which is why the rings of 4 and 5 have no answer and
+the ring of 6 does.
 
 \end{document}
