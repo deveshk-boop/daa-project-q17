@@ -1,40 +1,18 @@
 # Exact Domination of Lecture Timings
 
-## Problem
-
-A supervisor wants to select some courses so that the TAs of the selected courses can supervise all lectures. Each course has one lecture per day, and lectures may wrap past midnight.
-
-Given `n` lectures, select a subset such that **every lecture overlaps with exactly one lecture from the subset** (a selected lecture overlaps itself). If no such subset exists, report that.
-
-In graph terms, lectures are arcs on a 24-hour circle, and the task is to find an exact dominating set (perfect code) in a circular-arc graph.
+Given `n` daily lectures (start and end times, possibly crossing midnight), pick a
+subset so that **every lecture overlaps exactly one chosen lecture** (a chosen
+lecture overlaps itself). The program prints such a subset, or says none exists.
 
 ## Assumptions
 
-- Each lecture is a half-open interval `[start, end)` on a 1440-minute circle.
-- Back-to-back lectures (one ends at 10:00, the next starts at 10:00) **do not** overlap.
-- If `start == end`, the lecture is treated as a 1-minute lecture.
+- Lectures are half-open: if one ends at 10:00 and another starts at 10:00, they
+  do **not** overlap.
+- A lecture with the same start and end time is treated as 1 minute long.
 
-## Input Format
+## Input and output
 
-```
-n
-HH:MM HH:MM
-HH:MM HH:MM
-...
-```
-
-The first line is the number of lectures `n`. Each of the next `n` lines gives the start and end time of one lecture in 24-hour `HH:MM` format. If the end time is earlier than the start time, the lecture crosses midnight.
-
-## Output Format
-
-- `Selected lectures: i j k ...` with 1-based lecture numbers in increasing order, or
-- `No valid subset exists.`
-
-If several valid subsets exist, any one of them is printed.
-
-## Example
-
-Input:
+Input: `n`, then `n` lines of `HH:MM HH:MM` (start, end).
 
 ```
 4
@@ -44,78 +22,37 @@ Input:
 11:00 13:00
 ```
 
-Output:
+Output: the chosen lecture numbers, or `No valid subset exists.`
 
 ```
 Selected lectures: 1 4
 ```
 
-## How to Compile and Run
+If several answers are valid, any one is printed.
 
-Requires a C++ compiler with C++11 or later (e.g. g++ from MinGW-w64 / MSYS2).
+## Build and run
 
 ```
 g++ src/exact_domination.cpp -o exact_domination
-./exact_domination < tests/input.txt
+./exact_domination < input.txt
 ```
 
-Replace `tests/input.txt` with any input file in the format above. On Windows PowerShell, use `./exact_domination.exe < tests\input.txt` if needed. You can also run the program without redirection and type the input by hand.
+(On Windows PowerShell, use `.\exact_domination.exe < input.txt`.)
 
-Note: run the compile and run commands as two separate commands (or join them with `;` in PowerShell).
+## How it works, briefly
 
-## Algorithm Summary
+Chosen lectures can't overlap each other, so they sit around the 24-hour circle
+like beads on a necklace. The code checks which lecture can come right after
+which, then searches for a chain that goes once around the circle and closes up.
+Time: O(n^3), space: O(n^2). The full explanation and proof are in the report.
 
-1. Convert times to minutes and build an `overlap[i][j]` table.
-2. **Single lecture case:** if one lecture overlaps every lecture, output it.
-3. **General case:** the selected lectures are pairwise non-overlapping and appear in a cyclic order around the day. For consecutive selected lectures `a` then `b`:
-   - no lecture may overlap both `a` and `b` (it would be covered twice), and
-   - no lecture may lie entirely in the gap between them (it would be uncovered).
+## Files
 
-   Call this relation `canFollow[a][b]`.
-4. Find a chain of lectures that goes once around the circle and closes back on itself, using `canFollow` for every step. Some selected lecture must overlap lecture 1, so each lecture overlapping lecture 1 is tried as the starting point, and a dynamic program over lectures sorted by start time searches for a chain.
-5. If no chain is found, print `No valid subset exists.`
-
-The full correctness proof and analysis are in the report.
-
-## Complexity
-
-- **Time:** O(n³)
-- **Space:** O(n²)
-
-## Test Cases
-
-`testcases.txt` contains 11 test cases with expected outputs, covering:
-
-- a single lecture
-- one lecture overlapping all others
-- identical lectures
-- fully disjoint lectures
-- separate groups of lectures
-- a chain with a unique answer
-- touching lectures (end time equals next start time)
-- lectures crossing midnight
-- a ring of 6 lectures (solution wraps around the day)
-- rings of 5 and 4 lectures (no solution)
-
-Each case is labelled with `INPUT` and `EXPECTED`. Copy the lines of one input into its own file to run it.
-
-## Repository Structure
-
-```
-.
-├── README.md
-├── src/
-│   ├── exact_domination.cpp    efficient algorithm (main solution)
-├── tests/
-│   └── all_testcases.txt       labelled test cases with expected outputs
-└── report/
-    ├── report.tex
-    └── report.pdf
-```
-
-## Report
-
-The project report (LaTeX source and PDF) is in the `report/` folder.
+- `src/exact_domination.cpp`: the efficient solution
+- `src/brute_force.cpp`: the slow backtracking version, for checking small cases
+- `tests/all_testcases.txt`: 11 test cases with expected outputs (copy one input
+  into its own file to run it)
+- `report/report.tex`, `report/report.pdf`: the project report
 
 ## Author
 
